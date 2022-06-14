@@ -19,11 +19,10 @@
 import os
 import sys
 import time
-import httplib
-import urllib
-import urllib2
+import http.client
+import urllib.request
 import json
-import urlparse
+import urllib.parse
 from contextlib import closing
 import datetime
 
@@ -254,7 +253,7 @@ def print_tuples(x, delim=" ", tbl=None, geoms=None, fillchar=" ",  padding=1, v
 
 
     hdr = delim.join(frmtd)
-    if verbose: print hdr # print header
+    if verbose: arcpy.AddMessage(hdr) # print header
     sbuilder.append(hdr)
     for r in x:
         frmtd = []
@@ -282,7 +281,7 @@ def print_tuples(x, delim=" ", tbl=None, geoms=None, fillchar=" ",  padding=1, v
 
 
         if verbose:
-            print rw # print row
+            arcpy.AddMessage(rw) # print row
         sbuilder.append(rw)
 
 
@@ -352,7 +351,7 @@ def head(tbl, n=10, t=True, delimiter="; ", geoms=None, cols=["*"], w="", verbos
             toprint = l.ljust(longestLabel, ".") +  ": " + v
             arcpy.AddMessage(toprint)
             if verbose:
-                print toprint
+                arcpy.AddMessage(toprint)
     else:
         if verbose:
             print_tuples(hd, delim=delimiter, tbl=flds, geoms=geoms, returnit=False)
@@ -904,7 +903,7 @@ def docu(x, n = None):
     n = min(n, nrows)
     j = 0
     for i in dc:
-        print i
+        arcpy.AddMessage(i)
         j += 1
         if j == n: break
     return
@@ -972,7 +971,7 @@ def meta(datasource, mode="PREPEND", **args):
     # work
     r = arcpy.XSLTransform_conversion(datasource, xslt, tmpmetadatafile)
     tmpmetadatafile = r.getOutput(0)
-    with file(tmpmetadatafile, "r") as f:
+    with open(tmpmetadatafile, "r") as f:
         mf = f.read()
     tree = ET.fromstring(mf)
 
@@ -988,7 +987,7 @@ def meta(datasource, mode="PREPEND", **args):
             os.remove(tmpmetadatafile)
             r = arcpy.XSLTransform_conversion(datasource, xslt, tmpmetadatafile)
             tmpmetadatafile = r.getOutput(0)
-            with file(tmpmetadatafile, "r") as f:
+            with open(tmpmetadatafile, "r") as f:
                 mf = f.read()
             tree = ET.fromstring(mf)
 
@@ -1035,7 +1034,7 @@ def meta(datasource, mode="PREPEND", **args):
 
     # write a new xml file to be imported
     mf = ET.tostring(tree)
-    with file(tmpmetadatafile, "w") as f:
+    with open(tmpmetadatafile, "w") as f:
         f.write(mf)
 
     # import new xml file as metadata
@@ -1084,13 +1083,13 @@ def msg(x, timef='%Y-%m-%d %H:%M:%S', verbose=True, log=None, level='message'):
     if verbose:
         m = tstamp + ": " + x
         if level in ('message', '0'):
-            print("P:" + m)
+            arcpy.AddMessage("P:" + m)
             arcpy.AddMessage("T:" + m)
         elif level in ('warning', '1'):
-            print("W:" + m)
+            arcpy.AddMessage("W:" + m)
             arcpy.AddWarning("T:" + m)
         elif level in ('error', '2'):
-            print("E:" + m)
+            arcpy.AddMessage("E:" + m)
             arcpy.AddError("T:" + m)
             doexit = True
         else:
@@ -1125,7 +1124,7 @@ def list_environments(x=[], printit=False):
     for en in envs:
         env = getattr(arcpy.env, en)
         if printit:
-            print str(str(en) + " ").ljust(30, ".") + ": " + str(env)
+            arcpy.AddMessage(str(str(en) + " ").ljust(30, ".") + ": " + str(env))
         ret.append((en, env))
     return ret
 
@@ -1519,30 +1518,30 @@ def summary(tbl, cols=['*'], modes=None, maxcats=10, w='', verbose=True):
         if verbose:
             width = 10
             fulline = '-' * 40
-            print fulline
-            print str(tbl)
-            print str(arcpy.Describe(tbl).catalogPath)
-            print fulline
+            arcpy.AddMessage(fulline)
+            arcpy.AddMessage(str(tbl))
+            arcpy.AddMessage(str(arcpy.Describe(tbl).catalogPath))
+            arcpy.AddMessage(fulline)
             for j,i in stats.iteritems():
                 mode = modes[j]
-                print 'COLUMN'.ljust(width) + ": " + str(i.get('col', None))
-                print 'type'.ljust(width) + ": "+ str(i.get('type', None))
+                arcpy.AddMessage('COLUMN'.ljust(width) + ": " + str(i.get('col', None)))
+                arcpy.AddMessage('type'.ljust(width) + ": "+ str(i.get('type', None)))
                 if mode == "NUM":
-                    print 'min'.ljust(width) + ": " + str(i.get('min', None))
-                    print 'max'.ljust(width) + ": " + str(i.get('max', None))
-                    print 'mean'.ljust(width) + ": " + str(i.get('mean', None))
-                    print 'sum'.ljust(width) + ": " + str(i.get('sum', None))
-                    print 'n'.ljust(width) + ": " + str(i.get('n', None))
-                    print 'na'.ljust(width) + ": " + str(i.get('na', None))
+                    arcpy.AddMessage('min'.ljust(width) + ": " + str(i.get('min', None)))
+                    arcpy.AddMessage('max'.ljust(width) + ": " + str(i.get('max', None)))
+                    arcpy.AddMessage('mean'.ljust(width) + ": " + str(i.get('mean', None)))
+                    arcpy.AddMessage('sum'.ljust(width) + ": " + str(i.get('sum', None)))
+                    arcpy.AddMessage('n'.ljust(width) + ": " + str(i.get('n', None)))
+                    arcpy.AddMessage('na'.ljust(width) + ": " + str(i.get('na', None)))
                 elif mode == "CAT":
                     cats = i["cats"]
                     if len(cats) > 0:
-                        print "CATEGORIES:"
+                        arcpy.AddMessage("CATEGORIES:")
                         catable = sorted(zip(cats.keys(), cats.values()), key = lambda a: a[1], reverse = True)
                         print_tuples(catable)
                 else:
                     pass
-                print fulline
+                arcpy.AddMessage(fulline)
     return stats
 
 
@@ -2505,11 +2504,11 @@ def request_http(url, data=None, data_type='text', headers={}):
         data['callback'] = callback
 
     if data is not None:
-         data = urllib.urlencode(data)
+         data = urllib.request.urlencode(data)
 
     # make the request
-    rq = urllib2.Request(url, data, headers)
-    re = urllib2.urlopen(rq)
+    rq = urllib.request.Request(url, data, headers)
+    re = urllib.request.urlopen(rq)
     rs = re.read()
 
     # handle result
@@ -2536,7 +2535,7 @@ def request_http(url, data=None, data_type='text', headers={}):
 
 def request_https(url, data=None, data_type="text", headers={}):
     """Return result of an HTTPS Request.
-    Uses urllib.HTTPSConnection to issue the request.
+    Uses urllib.request.HTTPSConnection to issue the request.
 
     Only GET and POST methods are supported. To issue a GET request, parameters
     must be encoded as part of the url and data must be None. To issue a POST
@@ -2568,12 +2567,12 @@ def request_https(url, data=None, data_type="text", headers={}):
     if not url.lower().startswith("https://"):
         url = "https://" + url
 
-    urlparsed = urlparse.urlparse(url)
+    urlparsed = urllib.parse.urlparse(url)
     hostname = urlparsed.hostname
     path = url[8 + len(hostname):] # get path as url without https and host name
 
     # connect to the host and issue the request
-    with closing(httplib.HTTPSConnection(hostname)) as cns:
+    with closing(http.client.HTTPSConnection(hostname)) as cns:
 
         if data is None:
 
@@ -2590,7 +2589,7 @@ def request_https(url, data=None, data_type="text", headers={}):
                 raise Exception("data_type 'jsonp' not allowed for POST method!")
 
             # use POST request, data must be a dictionary and not part of the url
-            d = urllib.urlencode(data)
+            d = urllib.request.urlencode(data)
             cns.request("POST", path, d, headers)
 
         r = cns.getresponse()
@@ -2616,7 +2615,7 @@ def request_https(url, data=None, data_type="text", headers={}):
 def request(url, data=None, data_type='text', headers={}):
     """Return result of an HTTP or HTTPS Request.
 
-    Uses urllib2.Request to issue HTTP request and the urllib.HTTPSConnection
+    Uses urllib.request2.Request to issue HTTP request and the urllib.request.HTTPSConnection
     to issue https requests.
     Only GET and POST methods are supported. To issue a GET request, parameters
     must be encoded as part of the url and data must be None. To issue a POST
