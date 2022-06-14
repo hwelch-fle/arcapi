@@ -8,6 +8,10 @@
 # Created:     01/02/2014
 # Licence:     LGPL v3
 #-------------------------------------------------------------------------------
+# Python 3 Refactorer:  Hayden Welch 
+#
+# Date:                 6/13/2022
+#-------------------------------------------------------------------------------
 # The core module of the arcapi package.
 #
 # All this content gets imported when you import the arcapi package.
@@ -28,6 +32,7 @@ import datetime
 
 try:
     import arcpy
+    import arcpy.management
 except ImportError:
     from ArcpyMockup import ArcpyMockup
     arcpy = ArcpyMockup()
@@ -80,7 +85,7 @@ def nrow(x):
     Example:
     >>> nrow('c:\\foo\\bar.shp')
     """
-    return int(arcpy.GetCount_management(x).getOutput(0))
+    return int(arcpy.management.GetCount(x).getOutput(0))
 
 
 def values(tbl, col, w='', o=None):
@@ -253,7 +258,7 @@ def print_tuples(x, delim=" ", tbl=None, geoms=None, fillchar=" ",  padding=1, v
 
 
     hdr = delim.join(frmtd)
-    if verbose: arcpy.AddMessage(hdr) # print header
+    if verbose: msg(hdr) # print header
     sbuilder.append(hdr)
     for r in x:
         frmtd = []
@@ -281,7 +286,7 @@ def print_tuples(x, delim=" ", tbl=None, geoms=None, fillchar=" ",  padding=1, v
 
 
         if verbose:
-            arcpy.AddMessage(rw) # print row
+            msg(rw) # print row
         sbuilder.append(rw)
 
 
@@ -349,76 +354,79 @@ def head(tbl, n=10, t=True, delimiter="; ", geoms=None, cols=["*"], w="", verbos
         longestLabel = max(map(len, labels))
         for l,v in zip(labels, values):
             toprint = l.ljust(longestLabel, ".") +  ": " + v
-            arcpy.AddMessage(toprint)
+            msg(toprint)
             if verbose:
-                arcpy.AddMessage(toprint)
+                msg(toprint)
     else:
         if verbose:
             print_tuples(hd, delim=delimiter, tbl=flds, geoms=geoms, returnit=False)
     return [hd, fs]
-def chart(x, out_file='c:\\temp\\chart.jpg', texts={}, template=None, resolution=95, openit=True):
-    """Create and open a map (JPG) showing x and return path to the figure path.
 
-    Required:
-    x -- input feature class, raster dataset, or a layer
-
-    Optional:
-    out_file -- path to output jpeg file, default is 'c:\\temp\\chart.jpg'
-    texts -- dict of strings to include in text elements on the map (by name)
-    template -- path to the .mxd to be used, default None points to mxd with
-        a single text element called "txt"
-    resolution -- output resolution in DPI (dots per inch)
-    openit -- if True (default), exported jpg is opened in a webbrowser
-
-    Example:
-    >>> chart('c:\\foo\\bar.shp')
-    >>> chart('c:\\foo\\bar.shp', texts = {'txt': 'A Map'}, resolution = 300)
-    """
-    todel = []
-    import re
-    if template is None: template = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'chart.mxd')
-    if not re.findall(".mxd", template, flags=re.IGNORECASE): template += ".mxd"
-    if not re.findall(".jpe?g", out_file, flags=re.IGNORECASE): out_file += ".jpg"
-
-    mxd = arcpy.mapping.MapDocument(template)
-    if not arcpy.Exists(x):
-        x = arcpy.CopyFeatures_management(x, arcpy.CreateScratchName('tmp', workspace = 'in_memory')).getOutput(0)
-        todel = [x]
-    dtype = arcpy.Describe(x).dataType
-    df = arcpy.mapping.ListDataFrames(mxd)[0]
-
-    lr = "chart" + tstamp(tf = "%H%M%S")
-    if arcpy.Exists(lr) and arcpy.Describe(lr).dataType in ('FeatureLayer', 'RasterLayer'):
-        arcpy.Delete_management(lr)
-    if "raster" in dtype.lower():
-        arcpy.MakeRasterLayer_management(x, lr)
-    else:
-        arcpy.MakeFeatureLayer_management(x, lr)
-
-    lyr = arcpy.mapping.Layer(lr)
-    arcpy.mapping.AddLayer(df, lyr)
-
-    # try to update text elements if any requested:
-    for tel in texts.iterkeys():
-        try:
-            texel = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", tel)[0]
-            texel.text = str(texts[tel])
-        except Exception, e:
-            arcpy.AddMessage("Error when updating text element " + str(tel) + ": "+ str(e))
-    arcpy.RefreshActiveView()
-    arcpy.mapping.ExportToJPEG(mxd, out_file, resolution=resolution)
-
-    # cleanup
-    arcpy.Delete_management(lr)
-    del mxd
-    if todel: arcpy.Delete_management(todel[0])
-
-    # open the chart in a browser if requested
-    if openit:
-        import webbrowser
-        webbrowser.open_new_tab(out_file)
-
-    return arcpy.Describe(out_file).catalogPath
+# DEPRECIATED
+#
+#def chart(x, out_file='c:\\temp\\chart.jpg', texts={}, template=None, resolution=95, openit=True):
+#    """Create and open a map (JPG) showing x and return path to the figure path.
+#
+#    Required:
+#    x -- input feature class, raster dataset, or a layer
+#
+#    Optional:
+#    out_file -- path to output jpeg file, default is 'c:\\temp\\chart.jpg'
+#    texts -- dict of strings to include in text elements on the map (by name)
+#    template -- path to the .mxd to be used, default None points to mxd with
+#        a single text element called "txt"
+#    resolution -- output resolution in DPI (dots per inch)
+#    openit -- if True (default), exported jpg is opened in a webbrowser
+#
+#    Example:
+#    >>> chart('c:\\foo\\bar.shp')
+#    >>> chart('c:\\foo\\bar.shp', texts = {'txt': 'A Map'}, resolution = 300)
+#    """
+#    todel = []
+#    import re
+#    if template is None: template = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'chart.mxd')
+#    if not re.findall(".mxd", template, flags=re.IGNORECASE): template += ".mxd"
+#    if not re.findall(".jpe?g", out_file, flags=re.IGNORECASE): out_file += ".jpg"
+#
+#    mxd = arcpy.mapping.MapDocument(template)
+#    if not arcpy.Exists(x):
+#        x = arcpy.management.CopyFeatures(x, arcpy.CreateScratchName('tmp', workspace = 'in_memory')).getOutput(0)
+#        todel = [x]
+#    dtype = arcpy.Describe(x).dataType
+#    df = arcpy.mapping.ListDataFrames(mxd)[0]
+#
+#    lr = "chart" + tstamp(tf = "%H%M%S")
+#    if arcpy.Exists(lr) and arcpy.Describe(lr).dataType in ('FeatureLayer', 'RasterLayer'):
+#        arcpy.management.Delete(lr)
+#    if "raster" in dtype.lower():
+#        arcpy.management.MakeRasterLayer(x, lr)
+#    else:
+#        arcpy.management.MakeFeatureLayer(x, lr)
+#
+#    lyr = arcpy.mapping.Layer(lr)
+#    arcpy.mapping.AddLayer(df, lyr)
+#
+#    # try to update text elements if any requested:
+#    for tel in texts.iterkeys():
+#        try:
+#            texel = arcpy.mapping.ListLayoutElements(mxd, "TEXT_ELEMENT", tel)[0]
+#            texel.text = str(texts[tel])
+#        except Exception e:
+#            msg("Error when updating text element " + str(tel) + ": "+ str(e))
+#    arcpy.RefreshActiveView()
+#    arcpy.mapping.ExportToJPEG(mxd, out_file, resolution=resolution)
+#
+#    # cleanup
+#    arcpy.management.Delete(lr)
+#    del mxd
+#    if todel: arcpy.management.Delete(todel[0])
+#
+#    # open the chart in a browser if requested
+#    if openit:
+#        import webbrowser
+#        webbrowser.open_new_tab(out_file)
+#
+#    return arcpy.Describe(out_file).catalogPath
 
 
 def plot(x, y=None, out_file="c:\\temp\\plot.png", main="Arcapi Plot", xlab="X", ylab="Y", pch="+", color="r", openit=True):
@@ -448,10 +456,10 @@ def plot(x, y=None, out_file="c:\\temp\\plot.png", main="Arcapi Plot", xlab="X",
     openit -- if True (default), exported figure is opened in a webbrowser
 
     Example:
-    >>> x = xrange(20)
+    >>> x = range(20)
     >>> plot(x)
     >>> plot(x, out_file='c:\\temp\\pic.png')
-    >>> y = xrange(50,70)
+    >>> y = range(50,70)
     >>> plot(x, y, 'c:\\temp\\pic.png', 'Main', 'X [m]', 'Y [m]', 'o', 'k')
     """
     import re
@@ -460,7 +468,7 @@ def plot(x, y=None, out_file="c:\\temp\\plot.png", main="Arcapi Plot", xlab="X",
     if y is None:
         y = x
         len(x)
-        x = xrange(len(y))
+        x = range(len(y))
     lx = len(x)
     ly = len(y)
     if lx != ly:
@@ -811,9 +819,9 @@ def rename_col(tbl, col, newcol, alias = ''):
             raise ArcapiError("Field %s already exists in %s" % (newcol, dcp))
         oldF = [f for f in flds if f.name.lower() == col.lower()][0]
         if alias == "": alias = newcol
-        arcpy.AddField_management(tbl, newcol, oldF.type, oldF.precision, oldF.scale, oldF.length, alias, oldF.isNullable, oldF.required, oldF.domain)
-        arcpy.CalculateField_management(tbl, newcol, "!" + col + "!", "PYTHON_9.3")
-        arcpy.DeleteField_management(tbl, col)
+        arcpy.management.AddField(tbl, newcol, oldF.type, oldF.precision, oldF.scale, oldF.length, alias, oldF.isNullable, oldF.required, oldF.domain)
+        arcpy.management.CalculateField(tbl, newcol, "!" + col + "!", "PYTHON3")
+        arcpy.management.DeleteField(tbl, col)
     return newcol
 
 
@@ -860,7 +868,7 @@ def tlist_to_table(x, out_tbl, cols, nullNumber=None, nullText=None):
 
     dname = os.path.dirname(out_tbl)
     if dname in('', u''): dname = arcpy.env.workspace
-    r = arcpy.CreateTable_management(dname, os.path.basename(out_tbl))
+    r = arcpy.management.CreateTable(dname, os.path.basename(out_tbl))
     out_tbl = r.getOutput(0)
     # add the specified fields
     for f in cols:
@@ -869,7 +877,7 @@ def tlist_to_table(x, out_tbl, cols, nullNumber=None, nullText=None):
         flength = '#'
         if len(f) > 2:
             flength = int(f[2]) if str(f[2]).isdigit() else '#'
-        arcpy.AddField_management(out_tbl, fname, ftype, '#', '#', flength)
+        arcpy.management.AddField(out_tbl, fname, ftype, '#', '#', flength)
     # rewrite all tuples
     fields = [c[0] for c in cols]
 
@@ -903,7 +911,7 @@ def docu(x, n = None):
     n = min(n, nrows)
     j = 0
     for i in dc:
-        arcpy.AddMessage(i)
+        msg(i)
         j += 1
         if j == n: break
     return
@@ -1006,7 +1014,7 @@ def meta(datasource, mode="PREPEND", **args):
         if el is None:
             if not readonly:
                 wm = "Element %s not found, creating it from scratch." % str(p)
-                arcpy.AddWarning(wm)
+                msg(wm, "warning")
                 pparent = "/".join(p.split("/")[:-1])
                 parent = tree.find(pparent)
                 if parent is None:
@@ -1047,62 +1055,96 @@ def meta(datasource, mode="PREPEND", **args):
 
     return reader
 
+# DEPRECIATED FOR SIMPLER IMPLEMENTATION
+#
+#def msg(x, timef='%Y-%m-%d %H:%M:%S', verbose=True, log=None, level='message'):
+#    """Print (and optionally log) a message using print and arcpy.AddMessage.
+#
+#    In python console, arcpy.AddMessage does not work but print does.
+#    A message like 'P:2014-02-16 20:44:35: foo' is printed.
+#    In geoprocessing windows, print does not work but arcpy.AddMessage does,
+#    A message like 'T:2014-02-16 20:44:35: foo' is printed.
+#    In Windows command line, both messages are printed.
+#
+#    arcpy.AddWarning is used if level is 'warning'
+#    arcpy.AddError is used if level is 'error', sys.exit() is called then.
+#
+#    If log file does not exist, it is created, otherwise message is appended.
+#
+#    Required:
+#    x -- content of the message
+#
+#    Optional:
+#    timef -- time format, default is "%Y-%m-%d %H:%M:%S" (YYYY-MM-DD HH:MM:SS)
+#    verbose -- if True (default) print the message to the console
+#    log -- file to append the message to, the default is None (i.e. no appending)
+#    level -- one of 'message'|'warning'|'error' or 0|1|2 respectively
+#
+#    Example:
+#    >>> msg('foo') # P:2014-02-16 20:44:35: foo
+#    >>> msg('foo', '%H%M%S') # P:204503: foo
+#    >>> msg('foo', '%H%M%S', True, 'c:\\temp\\log.txt') # P:204531: foo
+#    """
+#    x = str(x)
+#    level = str(level).lower()
+#    doexit = False
+#    tstamp = time.strftime(timef, time.localtime())
+#    if verbose:
+#        m = tstamp + ": " + x
+#        if level in ('message', '0'):
+#            msg("P:" + m)
+#            msg("T:" + m)
+#        elif level in ('warning', '1'):
+#            msg("W:" + m)
+#            arcpy.AddWarning("T:" + m)
+#        elif level in ('error', '2'):
+#            msg("E:" + m)
+#            arcpy.AddError("T:" + m)
+#            doexit = True
+#        else:
+#            em = "Level %s not in 'message'|'warning'|'error'|0|1|2." % (level)
+#            raise ArcapiError(em)
+#
+#    if log not in ("", None):
+#        with open(log, "a") as fl:
+#            fl.write("P:" + tstamp + ": " + x + "\n")
+#
+#    if doexit:
+#        try: sys.exit()
+#        except: pass
 
-def msg(x, timef='%Y-%m-%d %H:%M:%S', verbose=True, log=None, level='message'):
-    """Print (and optionally log) a message using print and arcpy.AddMessage.
-
-    In python console, arcpy.AddMessage does not work but print does.
-    A message like 'P:2014-02-16 20:44:35: foo' is printed.
-    In geoprocessing windows, print does not work but arcpy.AddMessage does,
-    A message like 'T:2014-02-16 20:44:35: foo' is printed.
-    In Windows command line, both messages are printed.
-
-    arcpy.AddWarning is used if level is 'warning'
-    arcpy.AddError is used if level is 'error', sys.exit() is called then.
-
-    If log file does not exist, it is created, otherwise message is appended.
-
-    Required:
-    x -- content of the message
-
-    Optional:
-    timef -- time format, default is "%Y-%m-%d %H:%M:%S" (YYYY-MM-DD HH:MM:SS)
-    verbose -- if True (default) print the message to the console
-    log -- file to append the message to, the default is None (i.e. no appending)
-    level -- one of 'message'|'warning'|'error' or 0|1|2 respectively
-
-    Example:
-    >>> msg('foo') # P:2014-02-16 20:44:35: foo
-    >>> msg('foo', '%H%M%S') # P:204503: foo
-    >>> msg('foo', '%H%M%S', True, 'c:\\temp\\log.txt') # P:204531: foo
+def msg(msg,lvl="message"):
     """
-    x = str(x)
-    level = str(level).lower()
-    doexit = False
-    tstamp = time.strftime(timef, time.localtime())
-    if verbose:
-        m = tstamp + ": " + x
-        if level in ('message', '0'):
-            arcpy.AddMessage("P:" + m)
-            arcpy.AddMessage("T:" + m)
-        elif level in ('warning', '1'):
-            arcpy.AddMessage("W:" + m)
-            arcpy.AddWarning("T:" + m)
-        elif level in ('error', '2'):
-            arcpy.AddMessage("E:" + m)
-            arcpy.AddError("T:" + m)
-            doexit = True
-        else:
-            em = "Level %s not in 'message'|'warning'|'error'|0|1|2." % (level)
-            raise ArcapiError(em)
-
-    if log not in ("", None):
-        with open(log, "a") as fl:
-            fl.write("P:" + tstamp + ": " + x + "\n")
-
-    if doexit:
-        try: sys.exit()
-        except: pass
+    Uses print() and the arcpy.AddMessage() function to print a message.
+    
+    Levels: 'message', 'warning', 'error'
+    
+    'message' is default
+        
+    usage: msg("<message>")
+           msg("<warning_message>", "warning")
+           msg("<error_message>", "error")
+           
+    Cautions: Fails silently if unable to print to the console or Arc Messagebox
+    """
+    msg = str(msg)
+    lvl = str(lvl).lower()
+    lvl = ("message" if lvl not in ["message", "warning", "error"] else lvl)
+    try:
+        # Message
+        if lvl == "message":
+            print(msg)
+            arcpy.AddMessage(msg)
+        # Warning
+        elif lvl == "warning":
+            print(f"WARNING: {msg}")
+            arcpy.AddWarning(msg)
+        # Error
+        elif lvl == "error":
+            print(f"ERROR: {msg}")
+            arcpy.AddError(msg)
+    except Exception as e:
+        return e
 
 
 def list_environments(x=[], printit=False):
@@ -1124,7 +1166,7 @@ def list_environments(x=[], printit=False):
     for en in envs:
         env = getattr(arcpy.env, en)
         if printit:
-            arcpy.AddMessage(str(str(en) + " ").ljust(30, ".") + ": " + str(env))
+            msg(str(str(en) + " ").ljust(30, ".") + ": " + str(env))
         ret.append((en, env))
     return ret
 
@@ -1161,18 +1203,19 @@ def tstamp(p = "", tf="%Y%m%d%H%M%S", d="_", m=False, s=()):
     bits = str(d).join(map(str, s))
     if bits: bits = d + bits
     stamp = str(p) + time.strftime(tf, time.localtime()) + bits
-    if m: msg(stamp, "")
+    if m: msg(stamp)
     return stamp
 
 
-def dlt(x):
-    """arcpy.Delete_management(x) if arcpy.Exists(x).
+def dlt(x, clear=False):
+    """arcpy.management.Delete(x) if arcpy.Exists(x).
 
     Return False if x does not exist, True if x exists and was deleted.
     """
     deletted = False
     if arcpy.Exists(x):
-        arcpy.Delete_management(x)
+        if not clear: arcpy.management.Delete(x)
+        else: arcpy.management.DeleteRows(x)
         deletted = True
     return deletted
 
@@ -1233,10 +1276,10 @@ def to_points(tbl, out_fc, xcol, ycol, sr, zcol='#', w=''):
     lrnm = tstamp('lr', '%m%d%H%M%S', '')
     if type(sr) != arcpy.SpatialReference:
         sr = arcpy.SpatialReference(sr)
-    lr = arcpy.MakeXYEventLayer_management(tbl, xcol, ycol, lrnm, sr, zcol).getOutput(0)
+    lr = arcpy.management.MakeXYEventLayer(tbl, xcol, ycol, lrnm, sr, zcol).getOutput(0)
     if str(w) not in ('', '*'):
-        arcpy.SelectLayerByAttribute_management(lr, "NEW_SELECTION", w)
-    out_fc = arcpy.CopyFeatures_management(lr, out_fc).getOutput(0)
+        arcpy.management.SelectLayerByAttribute(lr, "NEW_SELECTION", w)
+    out_fc = arcpy.management.CopyFeatures(lr, out_fc).getOutput(0)
     dlt(lr)
     return (arcpy.Describe(out_fc).catalogPath)
 
@@ -1339,8 +1382,7 @@ def to_scratch(name, enforce=False):
 
     if arcpy.Describe(ws).workspaceType.lower() == 'filesystem':
         m = "Scratch workspace is a folder, scratch names may be incorrect."
-        msg(m)
-        arcpy.AddWarning(m)
+        msg(m, "warning")
 
     nm = os.path.basename(name)
     nm = arcpy.ValidateTableName(nm, ws)
@@ -1518,30 +1560,30 @@ def summary(tbl, cols=['*'], modes=None, maxcats=10, w='', verbose=True):
         if verbose:
             width = 10
             fulline = '-' * 40
-            arcpy.AddMessage(fulline)
-            arcpy.AddMessage(str(tbl))
-            arcpy.AddMessage(str(arcpy.Describe(tbl).catalogPath))
-            arcpy.AddMessage(fulline)
+            msg(fulline)
+            msg(str(tbl))
+            msg(str(arcpy.Describe(tbl).catalogPath))
+            msg(fulline)
             for j,i in stats.iteritems():
                 mode = modes[j]
-                arcpy.AddMessage('COLUMN'.ljust(width) + ": " + str(i.get('col', None)))
-                arcpy.AddMessage('type'.ljust(width) + ": "+ str(i.get('type', None)))
+                msg('COLUMN'.ljust(width) + ": " + str(i.get('col', None)))
+                msg('type'.ljust(width) + ": "+ str(i.get('type', None)))
                 if mode == "NUM":
-                    arcpy.AddMessage('min'.ljust(width) + ": " + str(i.get('min', None)))
-                    arcpy.AddMessage('max'.ljust(width) + ": " + str(i.get('max', None)))
-                    arcpy.AddMessage('mean'.ljust(width) + ": " + str(i.get('mean', None)))
-                    arcpy.AddMessage('sum'.ljust(width) + ": " + str(i.get('sum', None)))
-                    arcpy.AddMessage('n'.ljust(width) + ": " + str(i.get('n', None)))
-                    arcpy.AddMessage('na'.ljust(width) + ": " + str(i.get('na', None)))
+                    msg('min'.ljust(width) + ": " + str(i.get('min', None)))
+                    msg('max'.ljust(width) + ": " + str(i.get('max', None)))
+                    msg('mean'.ljust(width) + ": " + str(i.get('mean', None)))
+                    msg('sum'.ljust(width) + ": " + str(i.get('sum', None)))
+                    msg('n'.ljust(width) + ": " + str(i.get('n', None)))
+                    msg('na'.ljust(width) + ": " + str(i.get('na', None)))
                 elif mode == "CAT":
                     cats = i["cats"]
                     if len(cats) > 0:
-                        arcpy.AddMessage("CATEGORIES:")
+                        msg("CATEGORIES:")
                         catable = sorted(zip(cats.keys(), cats.values()), key = lambda a: a[1], reverse = True)
                         print_tuples(catable)
                 else:
                     pass
-                arcpy.AddMessage(fulline)
+                msg(fulline)
     return stats
 
 
@@ -1645,8 +1687,8 @@ def int_to_float(raster, out_raster, decimals):
                 out_raster = out_raster.split('.')[0] + '.tif'
                 fl_rast.save(out_raster)
         try:
-            arcpy.CalculateStatistics_management(out_raster)
-            arcpy.BuildPyramids_management(out_raster)
+            arcpy.management.CalculateStatistics(out_raster)
+            arcpy.management.BuildPyramids(out_raster)
         except:
             pass
 
@@ -1681,19 +1723,19 @@ def fill_no_data(in_raster, out_raster, w=5, h=5):
         _dir, name = os.path.split(arcpy.Describe(in_raster).catalogPath)
         temp = os.path.join(_dir, 'rast_copyxxx')
         if arcpy.Exists(temp):
-            arcpy.Delete_management(temp)
-        arcpy.CopyRaster_management(in_raster, temp)
+            arcpy.management.Delete(temp)
+        arcpy.management.CopyRaster(in_raster, temp)
 
         # Fill NoData
         arcpy.CheckOutExtension('Spatial')
         filled = sa.Con(sa.IsNull(temp),sa.FocalStatistics(temp,sa.NbrRectangle(w,h),'MEAN'),temp)
         filled.save(out_raster)
-        arcpy.BuildPyramids_management(out_raster)
+        arcpy.management.BuildPyramids(out_raster)
         arcpy.CheckInExtension('Spatial')
 
         # Delete original and replace
         if arcpy.Exists(temp):
-            arcpy.Delete_management(temp)
+            arcpy.management.Delete(temp)
         msg('Filled NoData Cells in: %s' %out_raster)
         return out_raster
     except ImportError:
@@ -1726,26 +1768,27 @@ def meters_to_feet(in_dem, out_raster, factor=3.28084):
                 out_raster = out_raster.split('.')[0] + '.tif'
                 out.save(out_raster)
         try:
-            arcpy.CalculateStatistics_management(out_raster)
-            arcpy.BuildPyramids_management(out_raster)
+            arcpy.management.CalculateStatistics(out_raster)
+            arcpy.management.BuildPyramids(out_raster)
         except:
             pass
-        arcpy.AddMessage('Created: %s' %out_raster)
+        msg('Created: %s' %out_raster)
         arcpy.CheckInExtension('Spatial')
         return out_raster
     except ImportError:
         return 'Module arcpy.sa not found'
 
 
-def currentMxd():
-    """Return handle to the CURRENT map document.
+
+def currentProject():
+    """Return handle to the CURRENT aprx project.
     ***Can be used only in an ArcMap session***
     """
-    return arcpy.mapping.MapDocument("CURRENT")
+    return arcpy.mp.ArcGISProject("CURRENT")
 
 
 def fixArgs(arg, arg_type=list):
-    """Fixe arguments from a script tool.
+    """Fix arguments from a script tool.
 
     For example, when using a script tool with a multivalue parameter,
     it comes in as "val_a;val_b;val_c".  This function can automatically
@@ -1806,13 +1849,13 @@ def copy_schema(template, new, sr=''):
     desc = arcpy.Describe(template)
     ftype = desc.dataType
     if 'table' in ftype.lower():
-        arcpy.CreateTable_management(path, name, template)
+        arcpy.management.CreateTable(path, name, template)
     else:
         stype = desc.shapeType.upper()
         sm = 'SAME_AS_TEMPLATE'
         if not sr:
             sr = desc.spatialReference
-        arcpy.CreateFeatureclass_management(path, name, stype, template, sm, sm, sr)
+        arcpy.management.CreateFeatureclass(path, name, stype, template, sm, sm, sr)
     return new
 
 
@@ -1828,7 +1871,7 @@ def make_poly_from_extent(ext, sr):
     >>> ext = arcpy.Describe(fc).extent
     >>> sr = 4326  #WKID for WGS 84
     >>> poly = make_poly_from_extent(ext, sr)
-    >>> arcpy.CopyFeatures_management(poly, r'C:\Temp\Project_boundary.shp')
+    >>> arcpy.management.CopyFeatures(poly, r'C:\Temp\Project_boundary.shp')
     """
     array = arcpy.Array()
     array.add(ext.lowerLeft)
@@ -2034,7 +2077,7 @@ def add_fields_from_table(in_tab, template, add_fields=[]):
     for field in add_fields:
         if field in f_dict:
             f_ob = f_dict[field]
-            arcpy.AddField_management(in_tab, field, f_ob[0], field_length=f_ob[1], field_alias=f_ob[2])
+            arcpy.management.AddField(in_tab, field, f_ob[0], field_length=f_ob[1], field_alias=f_ob[2])
             msg('Added field: {0}'.format(field))
     return
 
@@ -2140,7 +2183,7 @@ def join_using_dict(source_table, in_field, join_table, join_key, join_values=[]
         for fldb in join_values:
             if fldb == name:
                 name = create_field_name(source_table, fldb)
-                arcpy.AddField_management(source_table,name,ftype,pres,scale,length,alias,nullable,'',domain)
+                arcpy.management.AddField(source_table,name,ftype,pres,scale,length,alias,nullable,'',domain)
                 msg("Added '%s' field to \"%s\"" %(name, os.path.basename(source_table)))
                 update_fields.insert(join_values.index(fldb), name.encode('utf-8'))
 
@@ -2232,7 +2275,7 @@ def concatenate_fields(table, new_field, length, fields=[], delimiter='', number
 
     # Add field
     new_field = create_field_name(table, new_field)
-    arcpy.AddField_management(table, new_field, 'TEXT', field_length=length)
+    arcpy.management.AddField(table, new_field, 'TEXT', field_length=length)
 
     # Concatenate fields
     if arcpy.GetInstallInfo()['Version'] != '10.0':
@@ -2364,7 +2407,7 @@ def create_pie_chart(fig, table, case_field, data_field='', fig_title='', x=8.5,
     tmp_fld = 'cnt_xx_xx_'
     fields = [case_field, data_field]
     if not data_field:
-        arcpy.AddField_management(table, tmp_fld, 'SHORT')
+        arcpy.management.AddField(table, tmp_fld, 'SHORT')
         with arcpy.da.UpdateCursor(table, [tmp_fld]) as rows:
             for r in rows:
                 r[0] = 1
@@ -2387,7 +2430,7 @@ def create_pie_chart(fig, table, case_field, data_field='', fig_title='', x=8.5,
     if not data_field:
         if tmp_fld in [f.name for f in arcpy.ListFields(table)]:
             try:
-                arcpy.DeleteField_management(table, tmp_fld)
+                arcpy.management.DeleteField(table, tmp_fld)
             except:
                 pass
 
@@ -2409,7 +2452,7 @@ def create_pie_chart(fig, table, case_field, data_field='', fig_title='', x=8.5,
         pylab.title(fig_title)
         pylab.savefig(fig)
         msg('Created: %s' %fig)
-    arcpy.Delete_management(sum_table)
+    arcpy.management.Delete(sum_table)
     return fig
 
 
@@ -2426,23 +2469,23 @@ def combine_pdfs(out_pdf, pdf_path_or_list, wildcard=''):
         when searching through paths)
 
     Example:
-    >>> # test function with path
-    >>> out_pdf = r'C:\Users\calebma\Desktop\test.pdf'
-    >>> path = r'C:\Users\calebma\Desktop\pdfTest'
-    >>> combine_pdfs(out_pdf, path)
+     # test function with path
+     out_pdf = r'C:\Users\calebma\Desktop\test.pdf'
+     path = r'C:\Users\calebma\Desktop\pdfTest'
+     combine_pdfs(out_pdf, path)
 
-    >>> # test function with list
-    >>> out = r'C:\Users\calebma\Desktop\test2.pdf'
-    >>> pdfs = [r'C:\Users\calebma\Desktop\pdfTest\Mailing_Labels5160.pdf',
+     # test function with list
+     out = r'C:\Users\calebma\Desktop\test2.pdf'
+     pdfs = [r'C:\Users\calebma\Desktop\pdfTest\Mailing_Labels5160.pdf',
                 r'C:\Users\calebma\Desktop\pdfTest\Mailing_Taxpayer.pdf',
                 r'C:\Users\calebma\Desktop\pdfTest\stfr.pdf']
-    >>> combine_pdfs(out, pdfs)
-    """
+     combine_pdfs(out, pdfs)
+     """
 
     import glob
 
     # Create new PDF document
-    pdfDoc = arcpy.mapping.PDFDocumentCreate(out_pdf)
+    pdfDoc = arcpy.mp.PDFDocumentCreate(out_pdf)
 
     # if list, use that to combine pdfs
     if isinstance(pdf_path_or_list, list):
@@ -2612,7 +2655,7 @@ def request_https(url, data=None, data_type="text", headers={}):
     return result
 
 
-def request(url, data=None, data_type='text', headers={}):
+def request(url, data=None, data_type='text', headers={}, secure=True):
     """Return result of an HTTP or HTTPS Request.
 
     Uses urllib.request2.Request to issue HTTP request and the urllib.request.HTTPSConnection
@@ -2664,7 +2707,10 @@ def request(url, data=None, data_type='text', headers={}):
         try:
             result = request_https("https://" + url, data, data_type, headers)
         except:
-            result = request_http("http://"+ url, data, data_type, headers)
+            if secure:
+                raise Exception("Failed to issue https request, set secure=False to issue http request")
+            else:
+                result = request_http("http://"+ url, data, data_type, headers)
     else:
         raise Exception("Protocol can only be http or https!")
 
