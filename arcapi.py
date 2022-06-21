@@ -2851,6 +2851,9 @@ def featureclass_to_dict(in_fc, key_field = "OID@", value_fields = ["*"], includ
             else:
                 ## {key_field: [field_values]}
                 out_dict =  dict([[row[0],row[1:]] for row in arcpy.da.SearchCursor(in_fc, value_fields.insert(0, key_field))])
+        else:
+            msg("Error: value_fields must be a list of fields in the featureclass")
+            return False
     else:
         msg(f"Featureclass does not exist: {in_fc}")
         return False
