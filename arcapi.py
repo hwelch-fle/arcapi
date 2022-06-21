@@ -30,6 +30,8 @@ import urllib.parse
 from contextlib import closing
 import datetime
 
+from matplotlib.style import available
+
 try:
     import arcpy
     import arcpy.management
@@ -2808,7 +2810,56 @@ def project_coordinates(xys, in_sr, out_sr, datum_transformation=None):
 
     return xyspr
 
-
+def featureclass_to_dict(in_fc, key_field = "OID@", value_fields = ["*"], include_field_names = True):
+    """
+    Convert featureclass to dictionary.
+    Parameters:
+    in_fc (str): featureclass to convert
+    key_field (str): field to use as key, default is OID@
+    value_fields (list(str)): list of fields to use as values, default is all fields
+    include_field_names (bool): include field names in dictionary, default is True
+    
+    Returns:
+    A dictionary with the featureclass data indexed on the key in the format {key_field: {field_name : field_value}}, False if no data or no featureclass found
+    
+    Example:
+    >>> street_dict = featureclass_to_dict("Roads.shp", key_field = "OID@", value_fields = ["SHAPE@", "STREETNAME"], include_field_names = True)
+    >>> print(street_dict)
+    >>> {
+        1 : {
+                'SHAPE@' : <arcpy.Geometry.Polyline object at 0x7f8b8f8b8f90>, 
+                'STREETNAME' : 'Main Street'
+            }, 
+        2 : {
+                'SHAPE@' : <arcpy.Geometry.Polyline object at 0x7f8b8f8b8f76>, 
+                'STREETNAME' : 'Second Street'
+            }
+        }
+    >>> print(street_dict[1]['STREETNAME'])
+    >>> 'Main Street'
+    """
+    in_fc = str(in_fc)
+    key_field = str(key_field)
+    value_fields = str(value_fields)
+    out_dict = {}
+    
+    if arcpy.Exists(in_fc):
+        if (value_fields == ["*"]) or (all (field in arcpy.ListFields(in_fc) for field in value_fields)):
+            if include_field_names:
+                ## {key_field: {field_name1 : field_value1, field_name2 : field_value2}, ...}
+                out_dict =  dict([[row[0], dict([field for field in zip(value_fields[1:], row[1:])])] for row in arcpy.da.SearchCursor(in_fc, value_fields.insert(0, key_field))])
+            else:
+                ## {key_field: [field_values]}
+                out_dict =  dict([[row[0],row[1:]] for row in arcpy.da.SearchCursor(in_fc, value_fields.insert(0, key_field))])
+    else:
+        msg(f"Featureclass does not exist: {in_fc}")
+        return False
+    if out_dict == {}:
+        msg(f"No data found in featureclass: {in_fc}")
+        return False
+    else:
+        return out_dict
+    
 class ArcapiError(Exception):
     """A type of exception raised from arcapi module"""
     pass
