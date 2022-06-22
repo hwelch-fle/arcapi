@@ -2840,18 +2840,30 @@ def featureclass_to_dict(in_fc, key_field = "OID@", value_fields = ["*"], includ
     """
     in_fc = str(in_fc)
     key_field = str(key_field)
-    value_fields = str(value_fields)
+    for field in value_fields:
+        field = str(field)
     out_dict = {}
     
     if arcpy.Exists(in_fc):
-        if (value_fields == ["*"]) or (all (field in arcpy.ListFields(in_fc) for field in value_fields)):
+        if (value_fields == ["*"]) or (all ([field_name.name for field_name in arcpy.ListFields(in_fc)] for field in value_fields)):
+            if value_fields == ["*"]:
+                value_fields = [field.name for field in arcpy.ListFields(in_fc)]
+                value_fields.pop(value_fields.index(key_field))
             if include_field_names:
                 ## {key_field: {field_name1 : field_value1, field_name2 : field_value2}, ...}
-                out_dict =  dict([[row[0], dict([field for field in zip(value_fields[1:], row[1:])])] for row in arcpy.da.SearchCursor(in_fc, value_fields.insert(0, key_field))])
+                search_values = value_fields
+                search_values.insert(0, key_field)
+                out_dict =  dict([[row[0], dict([field for field in zip(search_values[1:], row[1:])])] for row in arcpy.da.SearchCursor(in_fc, search_values)])
             else:
-                ## {key_field: [field_values]}
-                out_dict =  dict([[row[0],row[1:]] for row in arcpy.da.SearchCursor(in_fc, value_fields.insert(0, key_field))])
+                ## {key_field: [field_values]} or {key_field: field_value} for single field searches
+                search_values = value_fields
+                search_values.insert(0, key_field)
+                out_dict =  dict([[row[0], row[1:]] for row in arcpy.da.SearchCursor(in_fc, search_values)])
+                for row in out_dict:
+                    if len(out_dict[row]) == 1:
+                        out_dict[row] = out_dict[row][0]
         else:
+            msg(arcpy.ListFields(in_fc))
             msg("Error: value_fields must be a list of fields in the featureclass")
             return False
     else:
